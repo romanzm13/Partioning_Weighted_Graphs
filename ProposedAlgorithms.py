@@ -14,7 +14,7 @@ import matplotlib.patches as mpatches
 """#Implemented functions to import and manage data"""
 #Filtering data
 def count_month(ind_month,mat_cases):
-    n=len(ind_month)-1
+    n = len(ind_month)-1
     n1,m1 = shape(mat_cases)
     mat_month = zeros((n1,n))
     for i in range(0,n):
@@ -137,7 +137,7 @@ def bipartition(B,com):
     return beta1,u11,u22,inc_mod,com1,com2
 
 #A is the adjacency or weight matrix
-def GAWG(A):
+def GWG(A):
     n = len(A)
     #Sum the weights of edges that affect each of the nodes
     weight_inc = apply_along_axis(sum,1,A)
@@ -243,7 +243,7 @@ def quality(W,communities):
     modularity = suma/(2*L)
     return mat_contr,modularity
 
-#Functions to construct the algorithm CUAM
+#Functions to construct the algorithm FUSE
 #Obtain reduced graph where the communities are the nodes and the weights are the sums of inter-community modularity
 #The modularity matrix used will be that of the original graph
 def graph_com_sum(com,W):
@@ -266,7 +266,7 @@ def graph_com_sum(com,W):
     return graph_comp
 
 #Obtain belonging level of each node to its community in the original partition
-def level_membership_GAWG(u):
+def level_membership_GWG(u):
     n = len(u)
     belong = []
     for i in range(0,n):
@@ -277,8 +277,8 @@ def level_membership_GAWG(u):
             belong_act.append(x/sum_act)
     return belong
 
-#Obtain the belonging level of the nodes that are part of a community that was the result of CUAM
-def level_membership_CUAM(W,com):
+#Obtain the belonging level of the nodes that are part of a community that was the result of FUSE
+def level_membership_FUSE(W,com):
     W_mod = mat_mod(W)
     #u11 has the positive elements of the eigenvector u, while u22 has the negative values
     beta1,u11,u22,inc_mod,conj1,conj2 = bipartition(W_mod,com)
@@ -301,7 +301,7 @@ def level_membership_CUAM(W,com):
     u_com = []
     for i in range(0,n1+n2):
         u_com.append((u[i],com_out[i]))
-    u_com.sort(key=lambda valor:valor[1])
+    u_com.sort(key = lambda valor:valor[1])
     u_ar = asarray(u_com)
     u_out = u_ar[:,0]
     return u_out
@@ -314,7 +314,7 @@ def vec_ind(n,com):
     return vec
 
 #Reduce the number of communities to a fixed number n
-def CUAM(u,com,W,q):
+def FUSE(u,com,W,q):
     n = len(com)
     num_rem = n-q
     com_out = com.copy()
@@ -336,7 +336,7 @@ def CUAM(u,com,W,q):
         #AAdd the community that is the union of the two removed
         com_out.append(merge_com)
         #Add the belonging level of the united community
-        u_new = level_membership_CUAM(W,merge_com)
+        u_new = level_membership_FUSE(W,merge_com)
         u_out.append(u_new)
         #Add the matrix of sum modularity of the connections between communities
         W_com_mod.append(W_graph)
@@ -379,13 +379,13 @@ def max_mat(mat):
     return max_val,pos
 
 #######################################################################################################
-#Functions to construct the algorithm CDAD
+#Functions to construct the algorithm ADD
 #Construct modularity matrix
 #A is adjacency or weight matrix of the graph
 def mat_mod(A):
     n = len(A)
     #Sum the weights of the edges that affect each of the nodes
-    weight_inc=apply_along_axis(sum,1,A)
+    weight_inc = apply_along_axis(sum,1,A)
     weight_row = zeros((1,n))
     weight_row[0,:] = weight_inc
     #Sum of all the weights of the graph
@@ -479,7 +479,7 @@ def com_sum_int(com,B):
     return ind_com[com_min]
 
 #n_p is the number of communities to which you want to increase
-def CDAD(com,n_p,W,func_dis,mat_dis):
+def ADD(com,n_p,W,func_dis,mat_dis):
     n = len(com)
     B = mat_mod(W)
     com_out = com.copy()
@@ -534,9 +534,9 @@ def change(groups,colors):
 
 def generate_patches(colors):
     list_patches = []
-    n_colors=len(colors)
+    n_colors = len(colors)
     for i in range(0,n_colors):
-        patch_act = mpatches.Patch(color=colors[i],label='Community '+str(i))
+        patch_act = mpatches.Patch(color = colors[i], label = str(i))
         list_patches.append(patch_act)
     return list_patches
 
