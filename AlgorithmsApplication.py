@@ -5,7 +5,7 @@
 
 from numpy import arange,array,dot,asarray,zeros,apply_along_axis,around,sort,shape,savetxt,array_equal,max,argmin,argmax,fill_diagonal,diag,argsort
 from numpy.linalg import eig
-from matplotlib.pyplot import plot,figure,title,legend,xlabel,ylabel,grid,axhline,axvline,savefig,imshow,show,scatter,hist,bar,subplots,Normalize,cm
+from matplotlib.pyplot import plot,figure,title,legend,xlabel,ylabel,grid,axhline,axvline,savefig,imshow,show,scatter,hist,bar,subplots,Normalize,cm,xticks,yticks
 from math import sqrt
 import pandas as pd
 from datetime import datetime,timedelta
@@ -100,14 +100,14 @@ print("Communities from the period June 2021-February 2022:")
 u_per,com_per = GWG(W_jun_feb)
 #Number of communities detected
 n_com = len(com_per)
-#Belonging level of each node to its respective community
+#Level of membership of each node to its respective community
 belong_fact = level_membership_GWG(u_per)
 print_com(W_jun_feb,com_per,name_mun)
 print()
-print("Belonging level to each community:")
+print("Level of membership to each community:")
 print(belong_fact)
 
-"""Colorear mapa con geopandas"""
+"""Color map with geopandas"""
 
 com_per_new = transf(com_per)
 groups_per = com_to_group(com_per_new)
@@ -142,10 +142,12 @@ t = arange(n_com-1,1,-1)
 print(t)
 print(red_mod)
 plot(t,red_mod, linestyle = "--", marker="o", markersize = 9, linewidth = 1.0, color = 'blue')
-ylabel("Modularity", fontsize = 14)
-xlabel("Number of communities", fontsize = 14)
+ylabel("Modularity", fontsize = 16)
+xlabel("Number of communities", fontsize = 16)
 axhline(y = 0.46676348, color = 'red', linestyle = "--", linewidth = 1.5)
-title("Quality of partitions decreasing the number of communities", fontsize = 14)
+xticks(fontsize = 15)
+yticks(fontsize = 15)
+#title("Quality of partitions decreasing the number of communities", fontsize = 14)
 grid()
 
 """Export image with a resolution of 600 dpi"""
@@ -158,7 +160,7 @@ fig.savefig("graphic_dec_com.png", dpi = 600)
 com4_jun_feb,W_mod_jun_feb,u4_jun_feb = FUSE(u_per,com_per,W_jun_feb,4)
 print("Division into 4 communities for the period June 2021-February 2022:")
 print_com(W_jun_feb,com4_jun_feb,name_mun)
-#Belonging level of each node to its respective community
+#Level of membership of each node to its respective community
 belong4_jun_feb = level_membership_GWG(u4_jun_feb)
 print()
 
@@ -186,118 +188,110 @@ fig.savefig("part_4_com.png", dpi = 600)
 
 Color level of membership using geopandas
 """
-
+#Nodes of Community 0
 niv0_4 = col_map_level(belong4_jun_feb[0],com4_jun_feb[0])
 niv0_mod = transf_cases_gto(niv0_4)
 mun_gto_map['Niv0_4'] = niv0_mod
 #Set the range for the choropleth
-titulo = 'a)'
+titulo = '(a) Community 0'
 col = 'Niv0_4'
 vmin = mun_gto_map[col].min()
 vmax = mun_gto_map[col].max()
 cmap = 'Reds'
 #Create figure and axes for Matplotlib
-fig,ax = subplots(1, figsize = (15,10))
+fig,axs = subplots(2, 2, figsize = (15,10))
+ax0 = axs[0,0]
 #Remove the axis
-ax.axis('off')
-mun_gto_map.plot(column = col, ax = ax, edgecolor = '0.1', linewidth = 1, cmap = cmap)
+ax0.axis('off')
+mun_gto_map.plot(column = col, ax = ax0, edgecolor = '0.1', linewidth = 1, cmap = cmap)
 #Add a title
-ax.set_title(titulo, fontdict = {'fontsize': '25', 'fontweight': '3'})
+ax0.set_title(titulo, fontdict = {'fontsize': '15', 'fontweight': '3'})
 #Create colorbar as a legend
 sm=cm.ScalarMappable(norm = Normalize(vmin = vmin, vmax = vmax), cmap = cmap)
 #Empty array for the data range
 sm._A = []
 #Add the colorbar to the figure
-cbaxes = fig.add_axes([0.25, 0.25, 0.01, 0.4])
-cbar = fig.colorbar(sm, cax = cbaxes)
+cbar = fig.colorbar(sm, ax = ax0)
+cbar.ax.tick_params(labelsize = 13)
 
-"""Export image with a resolution of 600 dpi"""
-
-fig.savefig("belong_FUSE_com0.png",dpi=600)
-
+#Nodes of Community 1
 niv1_4 = col_map_level(belong4_jun_feb[1],com4_jun_feb[1])
 niv1_mod = transf_cases_gto(niv1_4)
 mun_gto_map['Niv1_4'] = niv1_mod
 #Set the range for the choropleth
-titulo = 'b)'
+titulo = '(b) Community 1'
 col = 'Niv1_4'
 vmin = mun_gto_map[col].min()
 vmax = mun_gto_map[col].max()
 cmap = 'Greens'
 #Create figure and axes for Matplotlib
-fig,ax = subplots(1, figsize = (15,10))
+ax1=axs[0,1]
 #Remove the axis
-ax.axis('off')
-mun_gto_map.plot(column = col, ax = ax, edgecolor = '0.1', linewidth = 1, cmap = cmap)
+ax1.axis('off')
+mun_gto_map.plot(column = col, ax = ax1, edgecolor = '0.1', linewidth = 1, cmap = cmap)
 #Add a title
-ax.set_title(titulo, fontdict = {'fontsize': '25', 'fontweight': '3'})
+ax1.set_title(titulo, fontdict = {'fontsize': '15', 'fontweight': '3'})
 #Create colorbar as a legend
 sm = cm.ScalarMappable(norm = Normalize(vmin = vmin, vmax = vmax), cmap = cmap)
 #Empty array for the data range
 sm._A = []
 #Add the colorbar to the figure
-cbaxes = fig.add_axes([0.25, 0.25, 0.01, 0.4])
-cbar = fig.colorbar(sm, cax = cbaxes)
+cbar = fig.colorbar(sm, ax = ax1)
+cbar.ax.tick_params(labelsize = 13)
 
-"""Export image with a resolution of 600 dpi"""
-
-fig.savefig("belong_FUSE_com1.png", dpi = 600)
-
+#Nodes of Community 2
 niv2_4 = col_map_level(belong4_jun_feb[2],com4_jun_feb[2])
 niv2_mod = transf_cases_gto(niv2_4)
 mun_gto_map['Niv2_4'] = niv2_mod
 #Set the range for the choropleth
-titulo='c)'
+titulo='(c) Community 2'
 col = 'Niv2_4'
 vmin = mun_gto_map[col].min()
 vmax = mun_gto_map[col].max()
 cmap = 'PuRd'
 #Create figure and axes for Matplotlib
-fig,ax = subplots(1, figsize = (15,10))
+ax2 = axs[1,0]
 #Remove the axis
-ax.axis('off')
-mun_gto_map.plot(column = col, ax = ax, edgecolor = '0.1', linewidth = 1, cmap = cmap)
+ax2.axis('off')
+mun_gto_map.plot(column = col, ax = ax2, edgecolor = '0.1', linewidth = 1, cmap = cmap)
 #Add a title
-ax.set_title(titulo, fontdict = {'fontsize': '25', 'fontweight': '3'})
+ax2.set_title(titulo, fontdict = {'fontsize': '15', 'fontweight': '3'})
 #Create colorbar as a legend
 sm = cm.ScalarMappable(norm = Normalize(vmin = vmin, vmax = vmax), cmap = cmap)
 #Empty array for the data range
 sm._A = []
 #Add the colorbar to the figure
-cbaxes = fig.add_axes([0.25, 0.25, 0.01, 0.4])
-cbar = fig.colorbar(sm, cax = cbaxes)
+cbar = fig.colorbar(sm, ax = ax2)
+cbar.ax.tick_params(labelsize = 13)
 
-"""Export image with a resolution of 600 dpi"""
-
-fig.savefig("belong_FUSE_com2.png",dpi=600)
-
+#Nodes of Community 3g
 niv3_4 = col_map_level(belong4_jun_feb[3],com4_jun_feb[3])
 niv3_mod = transf_cases_gto(niv3_4)
 mun_gto_map['Niv3_4'] = niv3_mod
 #Set the range for the choropleth
-titulo = 'd)'
+titulo = '(d) Community 3'
 col = 'Niv3_4'
 vmin = mun_gto_map[col].min()
 vmax = mun_gto_map[col].max()
 cmap = 'Blues'
 #Create figure and axes for Matplotlib
-fig,ax = subplots(1,figsize = (15,10))
+ax3 = axs[1,1]
 #Remove the axis
-ax.axis('off')
-mun_gto_map.plot(column = col, ax = ax, edgecolor = '0.1', linewidth = 1, cmap = cmap)
+ax3.axis('off')
+mun_gto_map.plot(column = col, ax = ax3, edgecolor = '0.1', linewidth = 1, cmap = cmap)
 #Add a title
-ax.set_title(titulo, fontdict = {'fontsize': '25', 'fontweight': '3'})
+ax3.set_title(titulo, fontdict = {'fontsize': '15', 'fontweight': '3'})
 #Create colorbar as a legend
 sm = cm.ScalarMappable(norm = Normalize(vmin = vmin, vmax = vmax), cmap = cmap)
 #Empty array for the data range
 sm._A = []
 #Add the colorbar to the figure
-cbaxes = fig.add_axes([0.25, 0.25, 0.01, 0.4])
-cbar = fig.colorbar(sm, cax = cbaxes)
+cbar = fig.colorbar(sm, ax = ax3)
+cbar.ax.tick_params(labelsize = 13)
 
 """Export image with a resolution of 600 dpi"""
 
-fig.savefig("belong_FUSE_com3.png", dpi = 600)
+fig.savefig("level_membership_FUSE.png", dpi = 600)
 
 """#Find the increase in number of communities that maximizes modularity"""
 
@@ -314,10 +308,12 @@ t=arange(n_com+1,n_com+11)
 print(t)
 print(aum_mod)
 plot(t, aum_mod, linestyle = "--", marker = "o", markersize = 9, linewidth = 1.0, color = 'blue')
-ylabel("Modularity", fontsize = 14)
-xlabel("Number of communities", fontsize = 14)
+ylabel("Modularity", fontsize = 16)
+xlabel("Number of communities", fontsize = 16)
 axhline(y = 0.46676348, color = 'red', linestyle = "--", linewidth = 1.5)
-title("Quality of partitions increasing the number of communities", fontsize = 14)
+xticks(fontsize = 15)
+yticks(fontsize = 15)
+#title("Quality of partitions increasing the number of communities", fontsize = 14)
 grid()
 
 """Export image with a resolution of 600 dpi"""
