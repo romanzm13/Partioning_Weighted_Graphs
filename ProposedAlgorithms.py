@@ -137,7 +137,7 @@ def bipartition(B,com):
     return beta1,u11,u22,inc_mod,com1,com2
 
 #A is the adjacency or weight matrix
-def GWG(A):
+def WeGA(A):
     n = len(A)
     #Sum the weights of edges that affect each of the nodes
     weight_inc = apply_along_axis(sum,1,A)
@@ -266,7 +266,7 @@ def graph_com_sum(com,W):
     return graph_comp
 
 #Obtain belonging level of each node to its community in the original partition
-def level_membership_GWG(u):
+def level_membership_WeGA(u):
     n = len(u)
     belong = []
     for i in range(0,n):

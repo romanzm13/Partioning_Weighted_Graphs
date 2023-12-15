@@ -13,7 +13,7 @@ from sklearn.cluster import AgglomerativeClustering
 import matplotlib.patches as mpatches
 import geopandas
 pd.options.display.max_rows = 10
-from ProposedAlgorithms import count_month,GWG,FUSE,level_membership_GWG,level_membership_FUSE,print_com,transf,com_to_group,change,generate_patches,quality,col_map_level,transf_cases_gto,ADD,dis_fact_half,mat_dis_norm_max
+from ProposedAlgorithms import count_month,WeGA,FUSE,level_membership_WeGA,level_membership_FUSE,print_com,transf,com_to_group,change,generate_patches,quality,col_map_level,transf_cases_gto,ADD,dis_fact_half,mat_dis_norm_max
 
 """#Import the data to create maps"""
 mun_gto_map = geopandas.read_file('mgm_gto2020.shp')
@@ -95,13 +95,13 @@ for i in range(0,46):
             W_jun_feb[i,j] = (cases_per[i]+cases_per[j])/18
             W_jun_feb[j,i] = (cases_per[i]+cases_per[j])/18
 
-#Applying GWG
+#Applying WeGA
 print("Communities from the period June 2021-February 2022:")
-u_per,com_per = GWG(W_jun_feb)
+u_per,com_per = WeGA(W_jun_feb)
 #Number of communities detected
 n_com = len(com_per)
 #Level of membership of each node to its respective community
-belong_fact = level_membership_GWG(u_per)
+belong_fact = level_membership_WeGA(u_per)
 print_com(W_jun_feb,com_per,name_mun)
 print()
 print("Level of membership to each community:")
@@ -161,7 +161,7 @@ com4_jun_feb,W_mod_jun_feb,u4_jun_feb = FUSE(u_per,com_per,W_jun_feb,4)
 print("Division into 4 communities for the period June 2021-February 2022:")
 print_com(W_jun_feb,com4_jun_feb,name_mun)
 #Level of membership of each node to its respective community
-belong4_jun_feb = level_membership_GWG(u4_jun_feb)
+belong4_jun_feb = level_membership_WeGA(u4_jun_feb)
 print()
 
 """Color map using geopandas"""
