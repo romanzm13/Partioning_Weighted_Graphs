@@ -410,7 +410,7 @@ def mat_dis_norm_max(W,func_dist):
     #Obtain maximum weight
     W_max = max(W)
     #Define the sought bound based on K and W_max
-    bounds = [W_max,K**2/(2*L)]
+    bounds = [W_max,K**2/(2*L[0])]
     bounds.sort()
     upper_bound = bounds[1]
     #Calculate modularty matrix
@@ -448,7 +448,7 @@ def div_com(W,com_min,lab,func_dis,mat_dis):
         for j in range(0,n1):
             D_com[i,j] = D[com_min[i],com_min[j]]
     #Try different linkage functions
-    cluster = AgglomerativeClustering(n_clusters=2,affinity='precomputed',linkage='average')
+    cluster = AgglomerativeClustering(n_clusters=2,metric='precomputed',linkage='average')
     cluster.fit_predict(D_com)
     classif = cluster.labels_
     sub_com1,sub_com2 = sep_etiq(classif,lab)
