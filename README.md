@@ -1,4 +1,4 @@
-#Partioning_Weighted_Graphs
+# Partioning Weighted Graphs
 1. ProposedAlgorithms.py file contains the implementation of proposed algorithms for community detection in weighted networks. 
 Among these algorithms is the generalization of Newman's optimal modularity algorithm for the case of weighted graphs (named WeGA).
 In addition, there is the implementation of an algorithm to decrease the number of communities of any partition, called FUSE,
