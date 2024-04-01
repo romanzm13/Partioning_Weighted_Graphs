@@ -11,6 +11,7 @@ from datetime import datetime,timedelta
 from sklearn.cluster import AgglomerativeClustering
 import matplotlib.patches as mpatches
 
+#######################################################################################################
 """#Implemented functions to import and manage data"""
 #Filtering data
 def count_month(ind_month,mat_cases):
@@ -43,24 +44,7 @@ def fill_mat(lab,count,n):
         out[lab[i]-1] = count[i]
     return out
 
-#Construct matrix of time series per community
-def com_ser(com,mat_mun):
-    #El número de filas es acorde al número de comunidades
-    n = len(com)
-    #El número de columnas es igual al de las columnas de mat_mun
-    m1,m2 = shape(mat_mun)
-    #Construir matriz de salida
-    mat_com = zeros((n,m2))
-    for i in range(0,m2):
-        for j in range(0,n):
-            com_act = com[j]
-            suma = 0
-            n1=len(com_act)
-            for k in range(0,n1):
-                suma+=mat_mun[com_act[k],i]
-            mat_com[j,i] = suma
-    return mat_com
-
+#######################################################################################################
 """#Implemented functions to construct the algorithms"""
 
 #Show results
@@ -78,7 +62,7 @@ def print_com(W,com,lab):
             names_act.append(lab[com_act[j]])
         print(names_act)
     #Get partition modularity
-    B,mod = quality(W,com)
+    mod = modularity(W,com)
     print("This partition has modularity equal to: ",mod)
     return
 
@@ -137,7 +121,7 @@ def bipartition(B,com):
     return beta1,u11,u22,inc_mod,com1,com2
 
 #A is the adjacency or weight matrix
-def WeGA(A):
+def GeNA(A):
     n = len(A)
     #Sum the weights of edges that affect each of the nodes
     weight_inc = apply_along_axis(sum,1,A)
@@ -197,10 +181,24 @@ def WeGA(A):
             com_res = com_res_act.copy()
             u_res = u_act.copy()
             n_com = len(com_res)
-    return u_fin,com_fin
+    #Calculate level of membership of nodes per each community through normalizing the values of u_fin
+    level_memb = level_membership_GeNA(u_fin)
+    return level_memb,com_fin
+
+#Obtain belonging level of each node to its community in the original partition
+def level_membership_GeNA(u):
+    n = len(u)
+    belong = []
+    for i in range(0,n):
+        belong.append([])
+        sum_act=sum(u[i])
+        for x in u[i]:
+            belong_act = belong[i]
+            belong_act.append(x/sum_act)
+    return belong
 
 ###############################################################################################################
-#In this case, the modularity takes the communities with the municipalities indexed from 1 to 46
+#Verify if a municipality x belongs to the community com
 def comp(x,com):
     out = 0
     n = len(com)
@@ -209,40 +207,44 @@ def comp(x,com):
             out = 1
     return out
 
-def quality(W,communities):
+#Function to calculate the modularity of a partition
+def modularity(W,partition):
     n = len(W)
     #Sum the weights of the edges that affect each of the nodes
     weight_inc = apply_along_axis(sum,1,W)
     weight_row = zeros((1,n))
     weight_row[0,:] = weight_inc
     L = apply_along_axis(sum,1,weight_row)/2
-    mat_contr = zeros((n,n))
+    #Modularity matrix
+    B = zeros((n,n))
     for i in range(0,n):
         for j in range(0,n):
-            mat_contr[i,j] = W[i,j]-(weight_inc[i]*weight_inc[j])/(2*L)
+            B[i,j] = W[i,j]-(weight_inc[i]*weight_inc[j])/(2*L[0])
     #Calculate the modularity perform the sum on the edges between nodes that belong to the same community
-    m = len(communities)
+    m = len(partition)
     #Perform the sum in each community
     sum_com = zeros((1,m))
     #Generate arrays from which the necessary rows and columns will be removed
     mat_com = []
     for l in range(0,m):
-        mat_com.append(mat_contr.copy())
+        mat_com.append(B.copy())
     #Remove the values ​​of nodes that do not belong to the respective community
     for k in range(0,m):
-        com_act = communities[k]
+        com_act = partition[k]
         mat_act = mat_com[k]
         for p in range(0,n):
             if comp(p,com_act)==0:
                 mat_act[p,:] = zeros((n))
                 mat_act[:,p] = zeros((n))
-        row=zeros((1,n))
+        row = zeros((1,n))
         row[0,:] = apply_along_axis(sum,1,mat_act)
         sum_com[0,k] = apply_along_axis(sum,1,row)
     suma = apply_along_axis(sum,1,sum_com)
-    modularity = suma/(2*L)
-    return mat_contr,modularity
+    #Modularity value
+    mod = suma[0]/(2*L[0])
+    return mod
 
+#######################################################################################################
 #Functions to construct the algorithm FUSE
 #Obtain reduced graph where the communities are the nodes and the weights are the sums of inter-community modularity
 #The modularity matrix used will be that of the original graph
@@ -265,47 +267,6 @@ def graph_com_sum(com,W):
     graph_comp = graph_com+graph_com.T
     return graph_comp
 
-#Obtain belonging level of each node to its community in the original partition
-def level_membership_WeGA(u):
-    n = len(u)
-    belong = []
-    for i in range(0,n):
-        belong.append([])
-        sum_act=sum(u[i])
-        for x in u[i]:
-            belong_act = belong[i]
-            belong_act.append(x/sum_act)
-    return belong
-
-#Obtain the belonging level of the nodes that are part of a community that was the result of FUSE
-def level_membership_FUSE(W,com):
-    W_mod = mat_mod(W)
-    #u11 has the positive elements of the eigenvector u, while u22 has the negative values
-    beta1,u11,u22,inc_mod,conj1,conj2 = bipartition(W_mod,com)
-    n1 = len(u11)
-    n2 = len(u22)
-    #Vector that will contain the entries of both vectors, ordered according to the node to which they correspond
-    u = zeros((n1+n2))
-    #Transform u_11 and u_22 to arrays
-    u11_ar,u22_ar = asarray(u11),asarray(u22)
-    #The sum of u11_ar and u22_ar is the same, so only the sum of u11_ar will be calculated, which is the vector of positive elements
-    u_sum = 2*u11_ar.sum()
-    if n1!=0 and n2!=0:
-        u[0:n1] = 2*u11_ar/u_sum
-        u[n1:n1+n2] = -2*u22_ar/u_sum
-    else:
-        u[0:n1] = u11_ar
-        u[n1:n1+n2] = -u22_ar
-    com_out = conj1+conj2
-    #Order the elements of the vector u according to the node number, contained in com_out
-    u_com = []
-    for i in range(0,n1+n2):
-        u_com.append((u[i],com_out[i]))
-    u_com.sort(key = lambda valor:valor[1])
-    u_ar = asarray(u_com)
-    u_out = u_ar[:,0]
-    return u_out
-
 #Construct index vector of a community
 def vec_ind(n,com):
     vec = zeros((n,1))
@@ -313,37 +274,76 @@ def vec_ind(n,com):
         vec[x,0] = 1
     return vec
 
-#Reduce the number of communities to a fixed number n
-def FUSE(u,com,W,q):
-    n = len(com)
+#Algorithm that reduces the number of communities in a partition down to a wanted number q
+'''
+Inputs. List of lists level_memb_ini: level of membership of the nodes per community from the initial partition,
+        List of lists partition: initial partition that will be the base to decrease the number of communities,
+        array W: weight matrix of the graph,
+        int q: wanted number of communities.
+Outputs. List of lists part_out: final partition,
+        List of arrays W_com_mod: list of matrix of modularity inter-community obtained during the reduction,
+        list of lists level_memb_out: level of membership of the nodes per community from the final partition.
+'''
+def FUSE(level_memb_ini,partition,W,q):
+    n = len(partition)
     num_rem = n-q
-    com_out = com.copy()
-    u_out = u.copy()
+    part_out = partition.copy()
+    level_memb_out = level_memb_ini.copy()
     #Store the matrices with the sums of modularity of the connections between communities of each step
     W_com_mod = []
     for i in range(0,num_rem):
-        W_graph = graph_com_sum(com_out,W)
+        W_graph = graph_com_sum(part_out,W)
         mat_max,pos = max_mat(W_graph)
-        merge_com = com_out[pos[0]]+com_out[pos[1]]
+        merge_com = part_out[pos[0]]+part_out[pos[1]]
         #Delete communities to join
-        com_out.pop(pos[0])
-        com_out.pop(pos[1]-1)
+        part_out.pop(pos[0])
+        part_out.pop(pos[1]-1)
         #Delete the corresponding eigenvectors
-        u_out.pop(pos[0])
-        u_out.pop(pos[1]-1)
+        level_memb_out.pop(pos[0])
+        level_memb_out.pop(pos[1]-1)
         #Sort the items in the united community in ascending order
         merge_com.sort()
         #AAdd the community that is the union of the two removed
-        com_out.append(merge_com)
-        #Add the belonging level of the united community
-        u_new = level_membership_FUSE(W,merge_com)
-        u_out.append(u_new)
+        part_out.append(merge_com)
+        #Add the level of membership of the joined communities
+        level_new = level_membership_FUSE(W,merge_com)
+        level_memb_out.append(level_new)
         #Add the matrix of sum modularity of the connections between communities
         W_com_mod.append(W_graph)
     #Add the sum of modularity matrix corresponding to the final partition
-    W_graph_fin = graph_com_sum(com_out,W)
+    W_graph_fin = graph_com_sum(part_out,W)
     W_com_mod.append(W_graph_fin)
-    return com_out,W_com_mod,u_out
+    return part_out,W_com_mod,level_memb_out
+
+#Obtain the belonging level of the nodes that are part of a community that was the result of FUSE
+def level_membership_FUSE(W,com):
+    W_mod = mat_mod(W)
+    #u11 has the positive elements of the eigenvector u, while u22 has the negative values
+    beta1,u11,u22,inc_mod,conj1,conj2 = bipartition(W_mod,com)
+    n1,n2 = len(u11),len(u22)
+    #Total number of nodes
+    n = n1+n2
+    #Vector that will contain the entries of both vectors, ordered according to the node to which they correspond
+    u = zeros((n1+n2))
+    #Transform u_11 and u_22 to arrays
+    u11_ar,u22_ar = asarray(u11),asarray(u22)
+    #The sum of u11_ar and u22_ar is the same, so only the sum of u11_ar will be calculated, which is the vector of positive elements
+    u_sum = 2*u11_ar.sum()
+    if n1!=0 and n2!=0:
+        u[0:n1] = (n1/n)*2*u11_ar/u_sum
+        u[n1:n] = (n2/n)*(-2*u22_ar/u_sum)
+    else:
+        u[0:n1] = u11_ar
+        u[n1:n] = -u22_ar
+    com_out = conj1+conj2
+    #Order the elements of the vector u according to the node number, contained in com_out
+    u_com = []
+    for i in range(0,n):
+        u_com.append((u[i],com_out[i]))
+    u_com.sort(key = lambda valor:valor[1])
+    u_ar = asarray(u_com)
+    u_out = u_ar[:,0]
+    return u_out
 
 #Get the maximum element of an array, as well as its position
 def max_mat(mat):
@@ -428,7 +428,7 @@ def dis_fact_half(B_ij):
       return B_out
 
 #Separate the indices of the two subcommunities to generate the output of the algorithm
-def sep_etiq(clas_lab,lab):
+def sep_labels(clas_lab,lab):
     sub_com1,sub_com2 = [],[]
     n = len(clas_lab)
     for i in range(0,n):
@@ -451,49 +451,80 @@ def div_com(W,com_min,lab,func_dis,mat_dis):
     cluster = AgglomerativeClustering(n_clusters=2,metric='precomputed',linkage='average')
     cluster.fit_predict(D_com)
     classif = cluster.labels_
-    sub_com1,sub_com2 = sep_etiq(classif,lab)
+    sub_com1,sub_com2 = sep_labels(classif,lab)
     return sub_com1,sub_com2
 
 #This algorithm is to perform the internal sums of modularity and choose the community that presents the minimum
 def com_sum_int(com,B):
     n = len(B)
     l = len(com)
-    suma_com = []
+    sum_com = []
     ind_com = []
-    #Make zeros all the entries of diagonal of B
+    #Make the diagonal of B all zeros
     fill_diagonal(B,0)
     for k in range(0,l):
         com_k = com[k]
         x_k = vec_ind(n,com_k)
         #Perform the sum over all pairs of nodes in community k
         sum_k = dot(dot(x_k.T,B),x_k)
-        #Try with the average instead of with the sum
         #Current community size
         len_k = len(com_k)
         #Only take into account those communities composed of more than one node, otherwise they are already indivisible
         if len_k>1:
-          suma_com.append(sum_k/(len_k**2-len_k))
+          #Calculate average per possible link inside the community
+          sum_com.append(sum_k/(len_k**2-len_k))
           ind_com.append(k)
     #It indicates the position of the community with the minimum average of those that are not yet indivisible
-    com_min = argmin(suma_com)
+    com_min = argmin(sum_com)
     return ind_com[com_min]
 
-#n_p is the number of communities to which you want to increase
-def ADD(com,n_p,W,func_dis,mat_dis):
-    n = len(com)
+#Algorithm that increases the number of communities in a partition up to a wanted number n_p
+'''
+Inputs. List of lists partition: initial partition that will be the base to increase the number of communities,
+        int n_p: wanted number of communities,
+        array W: weight matrix of the graph.
+Outputs. List of lists part_out: final partition.
+'''
+def ADD(partition,n_p,W,func_dis=dis_fact_half,mat_dis=mat_dis_norm_max):
+    n = len(partition)
     B = mat_mod(W)
-    com_out = com.copy()
+    part_out = partition.copy()
     for i in range(0,n_p-n):
         #Community with lowest sum of internal modularity of the current partition
-        ind_min = com_sum_int(com_out,B)
-        com_min = com_out[ind_min]
-        com_out.pop(ind_min)
+        ind_min = com_sum_int(part_out,B)
+        com_min = part_out[ind_min]
+        part_out.pop(ind_min)
         #Split the com_min community in two
         sub1,sub2 = div_com(W,com_min,com_min,func_dis,mat_dis)
         #Add obtained sub-communities
-        com_out.append(sub1)
-        com_out.append(sub2)
-    return com_out
+        part_out.append(sub1)
+        part_out.append(sub2)
+    return part_out
+
+#######################################################################################################
+#ReVAM algorithm to generate a partition in k communities
+'''
+Inputs. Array W: Weight matrix,
+        int k: number of communities searched k.
+Output. Partition in k communities.
+'''
+def ReVAM(W,k):
+    #Find first partition through Generalization of Newman's Algorithm
+    coef_level_ini,part_ini = GeNA(W)
+    #Calculate number of communities obtained so far
+    num_com_GeNA = len(part_ini)
+    #Decide which algorithm is necessary to apply, or the initial partition is the searched
+    #In this case, apply ADD to increase the number of communities
+    if k>num_com_GeNA:
+        part_ADD = ADD(part_ini,k,W)
+        return part_ADD
+    #In this case, apply FUSE to decrease the number of communities
+    elif k<num_com_GeNA:
+        part_FUSE,W_FUSE,u_FUSE = FUSE(coef_level_ini,part_ini,W,k)
+        return part_FUSE
+    else:
+        return part_ini
+#######################################################################################################
 
 """#Implemented functions to manage maps"""
 

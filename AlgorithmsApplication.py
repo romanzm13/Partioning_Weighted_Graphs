@@ -12,12 +12,21 @@ from datetime import datetime,timedelta
 from sklearn.cluster import AgglomerativeClustering
 import matplotlib.patches as mpatches
 import geopandas
+from scipy.stats import pearsonr
 pd.options.display.max_rows = 10
-from ProposedAlgorithms import count_month,WeGA,FUSE,level_membership_WeGA,level_membership_FUSE,print_com,transf,com_to_group,change,generate_patches,quality,col_map_level,transf_cases_gto,ADD,dis_fact_half,mat_dis_norm_max
+from ProposedAlgorithms import count_month,GeNA,FUSE,ADD,print_com,transf,com_to_group,change,generate_patches,modularity,col_map_level,transf_cases_gto
 
 """#Import the data to create maps"""
 mun_gto_map = geopandas.read_file('mgm_gto2020.shp')
 mun_gto_map.head()
+
+"""#SICOM Zoning of the State of Guanajuato"""
+
+#Import the names of the municipalities in the format necessary for the map
+df_highway = pd.read_excel("highway_data.xlsx", sheet_name = "Hoja1")
+zone_num = df_highway['Zone']
+index_marg = df_highway['Marginalization_index']
+df_highway.info()
 
 """#Import the epidemiological data"""
 
@@ -71,21 +80,12 @@ mat_adj = df1.values
 mat_count_month = count_month(month_ini,data)
 
 #Determination of the weight matrix from June 2021 to February 2022
-cases_per = zeros((46,1))
+cases_per = zeros((46))
 #There are 9 months that will need to be added for the considered period
 for k in range(0,9):
   month_act = mat_count_month[:,k+15]
-  cases_per[:,0] = cases_per[:,0]+month_act
+  cases_per = cases_per+month_act
 
-#Export the number of average cases for each municipality from June 2021 to February 2022
-etiq_map = df_etiq["Etiquetas_mapa"]
-#Export municipalities community list along with average cases
-cases_exp = pd.ExcelWriter('Gto_jun_feb_prom.xlsx')
-df=pd.DataFrame(cases_per/9,columns = ["Casos_promedio"])
-df['Municipio'] = etiq_map
-df.to_excel(cases_exp,sheet_name = 'Casos_por_municipio', index=True)
-cases_exp.save()
-cases_exp.close()
 
 #Construct the weight matrix using the adjacency matrix
 W_jun_feb = zeros((46,46))
@@ -95,17 +95,17 @@ for i in range(0,46):
             W_jun_feb[i,j] = (cases_per[i]+cases_per[j])/18
             W_jun_feb[j,i] = (cases_per[i]+cases_per[j])/18
 
-#Applying WeGA
+#Applying GeNA
 print("Communities from the period June 2021-February 2022:")
-u_per,com_per = WeGA(W_jun_feb)
+level_memb_per,com_per = GeNA(W_jun_feb)
 #Number of communities detected
 n_com = len(com_per)
-#Level of membership of each node to its respective community
-belong_fact = level_membership_WeGA(u_per)
 print_com(W_jun_feb,com_per,name_mun)
+#Level of membership of each node to its respective community
 print()
 print("Level of membership to each community:")
-print(belong_fact)
+print(level_memb_per)
+print()
 
 """Color map with geopandas"""
 
@@ -115,27 +115,79 @@ groups_per = com_to_group(com_per_new)
 colors  =['red','green','hotpink','blue','purple','yellow']
 colors_per = change(groups_per,colors)
 #Color map
-fig,ax = subplots(figsize = (25,16))
+fig,axs = subplots(1, 2, figsize = (15,12))
+ax_GeNA = axs[0]
 #Remove the axis
-ax.axis('off')
+ax_GeNA.axis('off')
 #Assign community labels to colors
 color_patches = generate_patches(colors)
-ax.legend(handles = color_patches, prop = {'size':14}, loc = 4)
-mun_gto_map.plot(color = colors_per, ax = ax)
+ax_GeNA.set_title('(a) GeNA Result')
+ax_GeNA.legend(handles = color_patches, prop = {'size':14}, loc = 4)
+mun_gto_map.plot(color = colors_per, ax = ax_GeNA)
+
+
+
+"""#Find the increase in number of communities that maximizes modularity"""
+
+#List to store modularity of the partitions with less number of communities
+inc_mod = []
+for i in range(n_com+1,n_com+11):
+    com_i_per = ADD(com_per,i,W_jun_feb)
+    n_com_i = len(com_i_per)
+    mod = modularity(W_jun_feb,com_i_per)
+    inc_mod.append(mod)
+fig1 = figure(figsize = (10,8))
+t=arange(n_com+1,n_com+11)
+print(t)
+print(inc_mod)
+plot(t, inc_mod, linestyle = "--", marker = "o", markersize = 9, linewidth = 1.0, color = 'blue')
+ylabel("Modularity", fontsize = 16)
+xlabel("Number of communities", fontsize = 16)
+axhline(y = 0.46676348, color = 'red', linestyle = "--", linewidth = 1.5)
+xticks(fontsize = 15)
+yticks(fontsize = 15)
+#title("Quality of partitions increasing the number of communities", fontsize = 14)
+grid()
 
 """Export image with a resolution of 600 dpi"""
+fig1.savefig("graphic_10_inc.png", dpi = 600)
 
-fig.savefig("com_ini.png", dpi = 600)
+"""#Increase number of communities"""
+
+#Detect four communities to get a partition into 10 communities
+com10_per = ADD(com_per,10,W_jun_feb)
+print("Partition in 10 communities from the period from June 2021 to February 2022 with upper bound normalization:")
+print_com(W_jun_feb,com10_per,name_mun)
+
+"""Color map using geopandas"""
+
+com10_new = transf(com10_per)
+groups10 = com_to_group(com10_new)
+#List of 10 colors to use for communities
+colors = ['red','green','hotpink','blue','purple','yellow','cyan','magenta','brown','olive']
+colors10 = change(groups10,colors)
+#Color mapa
+ax_ADD = axs[1]
+#Remove the axis
+ax_ADD.axis('off')
+#Assign community labels to colors
+color_patches = generate_patches(colors)
+ax_ADD.set_title('(b) ADD Result')
+ax_ADD.legend(handles = color_patches, prop = {'size':10}, loc = 4)
+mun_gto_map.plot(color = colors10, ax = ax_ADD)
+
+"""Export image with a resolution of 600 dpi"""
+fig.savefig("part_GeNA_and_ADD.png", dpi = 600)
+
 
 """#Find the reduction in number of communities that maximizes modularity"""
 
 #List to store modularity of the partitions with less number of communities
 red_mod = []
 for i in range(n_com-1,1,-1):
-    com_i_per,mat_per_i,u_i_per = FUSE(u_per,com_per,W_jun_feb,i)
+    com_i_per,mat_per_i,u_i_per = FUSE(level_memb_per,com_per,W_jun_feb,i)
     n_com_i = len(com_i_per)
-    B,mod = quality(W_jun_feb,com_i_per)
-    print(mod)
+    mod = modularity(W_jun_feb,com_i_per)
     red_mod.append(mod)
 fig = figure(figsize = (10,8))
 t = arange(n_com-1,1,-1)
@@ -151,17 +203,16 @@ yticks(fontsize = 15)
 grid()
 
 """Export image with a resolution of 600 dpi"""
-
 fig.savefig("graphic_dec_com.png", dpi = 600)
+
 
 """#Reduce number of communities to 4"""
 
 #Partition using FUSE, that considers sums of modularity between pairs of communities
-com4_jun_feb,W_mod_jun_feb,u4_jun_feb = FUSE(u_per,com_per,W_jun_feb,4)
+#belong4_jun_feb is the level of membership of each node to its respective community
+com4_jun_feb,W_mod_jun_feb,belong4_jun_feb = FUSE(level_memb_per,com_per,W_jun_feb,4)
 print("Division into 4 communities for the period June 2021-February 2022:")
 print_com(W_jun_feb,com4_jun_feb,name_mun)
-#Level of membership of each node to its respective community
-belong4_jun_feb = level_membership_WeGA(u4_jun_feb)
 print()
 
 """Color map using geopandas"""
@@ -171,17 +222,17 @@ groups4 = com_to_group(com4_new)
 #List of 4 colors to use for communities
 colors = ['red','green','hotpink','blue']
 colors4 = change(groups4,colors)
-#Color mapa
+#Color map
 fig,ax = subplots(figsize = (18,12))
 #Remove the axis
 ax.axis('off')
+ax.set_title('FUSE Result')
 #Assign community labels to colors
 color_patches = generate_patches(colors)
 ax.legend(handles = color_patches, prop = {'size':14}, loc = 7)
 mun_gto_map.plot(color = colors4, ax = ax)
 
 """Export image with a resolution of 600 dpi"""
-
 fig.savefig("part_4_com.png", dpi = 600)
 
 """#Level of membership to the communities
@@ -193,7 +244,7 @@ niv0_4 = col_map_level(belong4_jun_feb[0],com4_jun_feb[0])
 niv0_mod = transf_cases_gto(niv0_4)
 mun_gto_map['Niv0_4'] = niv0_mod
 #Set the range for the choropleth
-titulo = '(a) Community 0'
+title0 = '(a) Community 0'
 col = 'Niv0_4'
 vmin = mun_gto_map[col].min()
 vmax = mun_gto_map[col].max()
@@ -205,9 +256,9 @@ ax0 = axs[0,0]
 ax0.axis('off')
 mun_gto_map.plot(column = col, ax = ax0, edgecolor = '0.1', linewidth = 1, cmap = cmap)
 #Add a title
-ax0.set_title(titulo, fontdict = {'fontsize': '15', 'fontweight': '3'})
+ax0.set_title(title0, fontdict = {'fontsize': '15', 'fontweight': '3'})
 #Create colorbar as a legend
-sm=cm.ScalarMappable(norm = Normalize(vmin = vmin, vmax = vmax), cmap = cmap)
+sm = cm.ScalarMappable(norm = Normalize(vmin = vmin, vmax = vmax), cmap = cmap)
 #Empty array for the data range
 sm._A = []
 #Add the colorbar to the figure
@@ -219,7 +270,7 @@ niv1_4 = col_map_level(belong4_jun_feb[1],com4_jun_feb[1])
 niv1_mod = transf_cases_gto(niv1_4)
 mun_gto_map['Niv1_4'] = niv1_mod
 #Set the range for the choropleth
-titulo = '(b) Community 1'
+title1 = '(b) Community 1'
 col = 'Niv1_4'
 vmin = mun_gto_map[col].min()
 vmax = mun_gto_map[col].max()
@@ -230,7 +281,7 @@ ax1=axs[0,1]
 ax1.axis('off')
 mun_gto_map.plot(column = col, ax = ax1, edgecolor = '0.1', linewidth = 1, cmap = cmap)
 #Add a title
-ax1.set_title(titulo, fontdict = {'fontsize': '15', 'fontweight': '3'})
+ax1.set_title(title1, fontdict = {'fontsize': '15', 'fontweight': '3'})
 #Create colorbar as a legend
 sm = cm.ScalarMappable(norm = Normalize(vmin = vmin, vmax = vmax), cmap = cmap)
 #Empty array for the data range
@@ -244,7 +295,7 @@ niv2_4 = col_map_level(belong4_jun_feb[2],com4_jun_feb[2])
 niv2_mod = transf_cases_gto(niv2_4)
 mun_gto_map['Niv2_4'] = niv2_mod
 #Set the range for the choropleth
-titulo='(c) Community 2'
+title2 ='(c) Community 2'
 col = 'Niv2_4'
 vmin = mun_gto_map[col].min()
 vmax = mun_gto_map[col].max()
@@ -255,7 +306,7 @@ ax2 = axs[1,0]
 ax2.axis('off')
 mun_gto_map.plot(column = col, ax = ax2, edgecolor = '0.1', linewidth = 1, cmap = cmap)
 #Add a title
-ax2.set_title(titulo, fontdict = {'fontsize': '15', 'fontweight': '3'})
+ax2.set_title(title2, fontdict = {'fontsize': '15', 'fontweight': '3'})
 #Create colorbar as a legend
 sm = cm.ScalarMappable(norm = Normalize(vmin = vmin, vmax = vmax), cmap = cmap)
 #Empty array for the data range
@@ -264,12 +315,12 @@ sm._A = []
 cbar = fig.colorbar(sm, ax = ax2)
 cbar.ax.tick_params(labelsize = 13)
 
-#Nodes of Community 3g
+#Nodes of Community 3
 niv3_4 = col_map_level(belong4_jun_feb[3],com4_jun_feb[3])
 niv3_mod = transf_cases_gto(niv3_4)
 mun_gto_map['Niv3_4'] = niv3_mod
 #Set the range for the choropleth
-titulo = '(d) Community 3'
+title3 = '(d) Community 3'
 col = 'Niv3_4'
 vmin = mun_gto_map[col].min()
 vmax = mun_gto_map[col].max()
@@ -280,7 +331,7 @@ ax3 = axs[1,1]
 ax3.axis('off')
 mun_gto_map.plot(column = col, ax = ax3, edgecolor = '0.1', linewidth = 1, cmap = cmap)
 #Add a title
-ax3.set_title(titulo, fontdict = {'fontsize': '15', 'fontweight': '3'})
+ax3.set_title(title3, fontdict = {'fontsize': '15', 'fontweight': '3'})
 #Create colorbar as a legend
 sm = cm.ScalarMappable(norm = Normalize(vmin = vmin, vmax = vmax), cmap = cmap)
 #Empty array for the data range
@@ -290,59 +341,46 @@ cbar = fig.colorbar(sm, ax = ax3)
 cbar.ax.tick_params(labelsize = 13)
 
 """Export image with a resolution of 600 dpi"""
-
 fig.savefig("level_membership_FUSE.png", dpi = 600)
 
-"""#Find the increase in number of communities that maximizes modularity"""
+"""#Correlación del nivel de pertenencia con otras variables"""
 
-#List to store modularity of the partitions with less number of communities
-aum_mod = []
-for i in range(n_com+1,n_com+11):
-    com_i_per = ADD(com_per,i,W_jun_feb,dis_fact_half,mat_dis_norm_max)
-    n_com_i = len(com_i_per)
-    B,mod = quality(W_jun_feb,com_i_per)
-    print(mod)
-    aum_mod.append(mod)
-fig = figure(figsize = (10,8))
-t=arange(n_com+1,n_com+11)
-print(t)
-print(aum_mod)
-plot(t, aum_mod, linestyle = "--", marker = "o", markersize = 9, linewidth = 1.0, color = 'blue')
-ylabel("Modularity", fontsize = 16)
-xlabel("Number of communities", fontsize = 16)
-axhline(y = 0.46676348, color = 'red', linestyle = "--", linewidth = 1.5)
-xticks(fontsize = 15)
-yticks(fontsize = 15)
-#title("Quality of partitions increasing the number of communities", fontsize = 14)
-grid()
+#Función para dividir un vector de datos de acuerdo a una partición
+def div_vec(data,part):
+    #Number of communities of the partition
+    n = len(part)
+    #List of lists
+    list_by_com = []
+    for i in range(0,n):
+        #Current community size
+        n_act = len(part[i])
+        list_by_com.append([])
+        for j in range(0,n_act):
+            list_by_com[i].append(data[part[i][j]])
+    return list_by_com
 
-"""Export image with a resolution of 600 dpi"""
 
-fig.savefig("graphic_10_inc.png", dpi = 600)
+"""Correlation of level of membership with the average number of monthly cases registered"""
 
-"""#Increase number of communities"""
+#Separate data vector of monthly cases registered by community
+list_cases_com = div_vec(cases_per,com4_jun_feb)
+#Calculate Pearson correlation coefficient and p-value between level of membership and registered cases per community
+print('If p-value < 0.05, then the correlation is statistically significant:')
+for k in range(0,4):
+    correlation_coeff_k, p_value_k = pearsonr(belong4_jun_feb[k], list_cases_com[k])
+    print("Level of membership of community "+str(k)+" vs Monthly registered cases")
+    print("Correlation coefficient = "+str(correlation_coeff_k)+" , p-value = "+str(p_value_k))
+    print()
 
-#Detect four communities to get a partition into 10 communities
-com10_per = ADD(com_per,10,W_jun_feb,dis_fact_half,mat_dis_norm_max)
-print("Partition in 10 communities from the period from June 2021 to February 2022 with upper bound normalization:")
-print_com(W_jun_feb,com10_per,name_mun)
 
-"""Color map using geopandas"""
+"""Correlation of level of membership with the marginization index"""
 
-com10_new = transf(com10_per)
-groups10 = com_to_group(com10_new)
-#List of 10 colors to use for communities
-colors = ['red','green','hotpink','blue','purple','yellow','cyan','magenta','brown','olive']
-colors10 = change(groups10,colors)
-#Color mapa
-fig,ax = subplots(figsize = (24,23))
-#Remove the axis
-ax.axis('off')
-#Assign community labels to colors
-color_patches = generate_patches(colors)
-ax.legend(handles = color_patches, prop = {'size':14}, loc = 4)
-mun_gto_map.plot(color = colors10, ax = ax)
-
-"""Export image with a resolution of 600 dpi"""
-
-fig.savefig("part_10_inc.png", dpi = 600)
+#Separate marginalization index data vector by community
+list_marg_com = div_vec(index_marg,com4_jun_feb)
+#Calculate Pearson correlation coefficient and p-value between level of membership and marginization index per community
+print('If p-value < 0.05, then the correlation is statistically significant:')
+for k in range(0,4):
+    correlation_coeff_k, p_value_k = pearsonr(belong4_jun_feb[k], list_marg_com[k])
+    print("Level of membership of community "+str(k)+" vs Marginization index")
+    print("Correlation coefficient = "+str(correlation_coeff_k)+" , p-value = "+str(p_value_k))
+    print()
