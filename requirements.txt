@@ -38,6 +38,7 @@ boto3 @ file:///C:/ci_311_rebuilds/boto3_1678997157581/work
 botocore @ file:///C:/ci_311/botocore_1676431559339/work
 Bottleneck @ file:///C:/ci_311/bottleneck_1676500016583/work
 brotlipy==0.7.0
+cairocffi==1.6.1
 certifi @ file:///C:/b/abs_36eb5mzhph/croot/certifi_1690232276943/work/certifi
 cffi @ file:///C:/ci_311/cffi_1676423759166/work
 chardet @ file:///C:/ci_311/chardet_1676436134885/work
@@ -103,6 +104,7 @@ holoviews @ file:///C:/b/abs_13gytsh91v/croot/holoviews_1690480023447/work
 hvplot @ file:///C:/b/abs_2b13wifauw/croot/hvplot_1685998632349/work
 hyperlink @ file:///tmp/build/80754af9/hyperlink_1610130746837/work
 idna @ file:///C:/ci_311/idna_1676424932545/work
+igraph==0.11.4
 imagecodecs @ file:///C:/ci_311_rebuilds/imagecodecs_1678999255423/work
 imageio @ file:///C:/ci_311/imageio_1678373794394/work
 imagesize @ file:///C:/ci_311/imagesize_1676431905616/work
@@ -149,6 +151,7 @@ keyring @ file:///C:/b/abs_dbjc7g0dh2/croot/keyring_1678999228878/work
 kiwisolver @ file:///C:/ci_311/kiwisolver_1676431979301/work
 lazy-object-proxy @ file:///C:/ci_311/lazy-object-proxy_1676432050939/work
 lazy_loader @ file:///C:/b/abs_c9jlw06oq1/croot/lazy_loader_1687266162676/work
+leidenalg==0.10.2
 libarchive-c @ file:///tmp/build/80754af9/python-libarchive-c_1617780486945/work
 libmambapy @ file:///C:/b/abs_1dshymu5qt/croot/mamba-split_1680096516212/work/libmambapy
 linkify-it-py @ file:///C:/ci_311/linkify-it-py_1676474436187/work
@@ -252,6 +255,7 @@ pyrsistent @ file:///C:/ci_311/pyrsistent_1676422695500/work
 PySocks @ file:///C:/ci_311/pysocks_1676425991111/work
 pytest @ file:///C:/b/abs_48heoo_k8y/croot/pytest_1690475385915/work
 python-dateutil @ file:///tmp/build/80754af9/python-dateutil_1626374649649/work
+python-igraph==0.11.4
 python-json-logger @ file:///C:/b/abs_cblnsm6puj/croot/python-json-logger_1683824130469/work
 python-lsp-black @ file:///C:/ci_311/python-lsp-black_1678721855627/work
 python-lsp-jsonrpc==1.0.0
@@ -324,6 +328,7 @@ tenacity @ file:///C:/b/abs_ddkoa9nju6/croot/tenacity_1682972298929/work
 terminado @ file:///C:/ci_311/terminado_1678228513830/work
 text-unidecode @ file:///Users/ktietz/demo/mc3/conda-bld/text-unidecode_1629401354553/work
 textdistance @ file:///tmp/build/80754af9/textdistance_1612461398012/work
+texttable==1.7.0
 threadpoolctl @ file:///Users/ktietz/demo/mc3/conda-bld/threadpoolctl_1629802263681/work
 three-merge @ file:///tmp/build/80754af9/three-merge_1607553261110/work
 tifffile @ file:///tmp/build/80754af9/tifffile_1627275862826/work
