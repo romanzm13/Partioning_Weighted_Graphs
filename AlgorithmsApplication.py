@@ -20,6 +20,11 @@ from ProposedAlgorithms import count_month,GeNA,FUSE,ADD,print_com,transf,com_to
 mun_gto_map = geopandas.read_file('mgm_gto2020.shp')
 mun_gto_map.head()
 
+"""List of colors to use in maps"""
+
+colors = ['red','green','hotpink','blue','purple','yellow','cyan','magenta','brown','olive','darkorange','gold','gray','crimson','darkcyan']
+
+
 """#SICOM Zoning of the State of Guanajuato"""
 
 #Import the names of the municipalities in the format necessary for the map
@@ -67,15 +72,11 @@ df_etiq = pd.read_excel("municipios_gto.xlsx", sheet_name = "Hoja1")
 #Import population of each municipality of Guanajuato
 population = df_etiq["Poblacion"]
 
-"""#Applying Generalized Algorithm to Weighted Algorithms
-
-Generate weight matrix for the period from June 2021 to February 2022
+"""#Generate weight matrix for the period from June 2021 to February 2022
 """
-
 #Import Adjacency Matrix from Excel
 df1 = pd.read_excel("mat_adj_gto.xlsx", sheet_name = "Sheet1")
 mat_adj = df1.values
-
 #Cases counted for each registered month
 mat_count_month = count_month(month_ini,data)
 
@@ -86,15 +87,44 @@ for k in range(0,9):
   month_act = mat_count_month[:,k+15]
   cases_per = cases_per+month_act
 
-
+#New adjacency matrix
+A_new = zeros((46,46))
 #Construct the weight matrix using the adjacency matrix
 W_jun_feb = zeros((46,46))
 for i in range(0,46):
     for j in range(i+1,46):
         if mat_adj[i,j+1]==1:
-            W_jun_feb[i,j] = (cases_per[i]+cases_per[j])/18
-            W_jun_feb[j,i] = (cases_per[i]+cases_per[j])/18
+            A_new[i,j],A_new[j,i] = 1,1
+            W_jun_feb[i,j],W_jun_feb[j,i] = (cases_per[i]+cases_per[j])/18,(cases_per[i]+cases_per[j])/18
 
+
+"""Partition using only the adjacency matrix"""
+
+#Apply the generalized Newman's algorithm
+print("Communities for the period June 2021-February 2022 considering only the adjacency matrix:")
+coef_A,com_A = GeNA(A_new)
+#Number of communities detected
+n_A = len(com_A)
+print_com(A_new,com_A,name_mun)
+
+com_A_new = transf(com_A)
+groups_A = com_to_group(com_A_new)
+colors_A = change(groups_A,colors[0:len(com_A)])
+#Color map
+fig,axs = subplots(1, 3, figsize = (15,12))
+ax_A = axs[0]
+#Remove the axis
+ax_A.axis('off')
+#Assign community labels to colors
+color_patches = generate_patches(colors[0:len(com_A)])
+#ax_A.legend(handles = color_patches, prop = {'size':12}, loc = 4)
+ax_A.set_title('(a) Using Only the Adjacency Matrix', fontdict = {'fontsize': '12', 'fontweight': '3'})
+mun_gto_map.plot(color = colors_A,ax = ax_A)
+
+
+
+"""#Applying Generalized Algorithm to Weighted Algorithms
+"""
 #Applying GeNA
 print("Communities from the period June 2021-February 2022:")
 level_memb_per,com_per = GeNA(W_jun_feb)
@@ -111,18 +141,15 @@ print()
 
 com_per_new = transf(com_per)
 groups_per = com_to_group(com_per_new)
-#List of 6 colors to use for communities
-colors  =['red','green','hotpink','blue','purple','yellow']
 colors_per = change(groups_per,colors)
 #Color map
-fig,axs = subplots(1, 2, figsize = (15,12))
-ax_GeNA = axs[0]
+ax_GeNA = axs[1]
 #Remove the axis
 ax_GeNA.axis('off')
 #Assign community labels to colors
-color_patches = generate_patches(colors)
-ax_GeNA.set_title('(a) GeNA Result')
-ax_GeNA.legend(handles = color_patches, prop = {'size':14}, loc = 4)
+color_patches = generate_patches(colors[0:len(com_per)])
+ax_GeNA.set_title('(b) GeNA Result',fontdict = {'fontsize': '12', 'fontweight': '3'})
+#ax_GeNA.legend(handles = color_patches, prop = {'size':14}, loc = 4)
 mun_gto_map.plot(color = colors_per, ax = ax_GeNA)
 
 
@@ -150,34 +177,32 @@ yticks(fontsize = 15)
 grid()
 
 """Export image with a resolution of 600 dpi"""
-fig1.savefig("graphic_10_inc.png", dpi = 600)
+fig1.savefig("graphic_inc.png", dpi = 600)
 
 """#Increase number of communities"""
 
-#Detect four communities to get a partition into 10 communities
-com10_per = ADD(com_per,10,W_jun_feb)
-print("Partition in 10 communities from the period from June 2021 to February 2022 with upper bound normalization:")
-print_com(W_jun_feb,com10_per,name_mun)
+#Detect four communities to get a partition into 15 communities
+com15_per = ADD(com_per,15,W_jun_feb)
+print("Partition in 15 communities from the period from June 2021 to February 2022 with upper bound normalization:")
+print_com(W_jun_feb,com15_per,name_mun)
 
 """Color map using geopandas"""
 
-com10_new = transf(com10_per)
-groups10 = com_to_group(com10_new)
-#List of 10 colors to use for communities
-colors = ['red','green','hotpink','blue','purple','yellow','cyan','magenta','brown','olive']
-colors10 = change(groups10,colors)
+com15_new = transf(com15_per)
+groups15 = com_to_group(com15_new)
+colors15 = change(groups15,colors)
 #Color mapa
-ax_ADD = axs[1]
+ax_ADD = axs[2]
 #Remove the axis
 ax_ADD.axis('off')
 #Assign community labels to colors
-color_patches = generate_patches(colors)
-ax_ADD.set_title('(b) ADD Result')
-ax_ADD.legend(handles = color_patches, prop = {'size':10}, loc = 4)
-mun_gto_map.plot(color = colors10, ax = ax_ADD)
+color_patches = generate_patches(colors[0:len(com15_new)])
+ax_ADD.set_title('(c) ADD Result', fontdict = {'fontsize': '12', 'fontweight': '3'})
+#ax_ADD.legend(handles = color_patches, prop = {'size':10}, loc = 4)
+mun_gto_map.plot(color = colors15, ax = ax_ADD)
 
 """Export image with a resolution of 600 dpi"""
-fig.savefig("part_GeNA_and_ADD.png", dpi = 600)
+fig.savefig("part_adj_GeNA_and_ADD.png", dpi = 600)
 
 
 """#Find the reduction in number of communities that maximizes modularity"""
@@ -219,8 +244,6 @@ print()
 
 com4_new = transf(com4_jun_feb)
 groups4 = com_to_group(com4_new)
-#List of 4 colors to use for communities
-colors = ['red','green','hotpink','blue']
 colors4 = change(groups4,colors)
 #Color map
 fig,ax = subplots(figsize = (18,12))
@@ -228,8 +251,8 @@ fig,ax = subplots(figsize = (18,12))
 ax.axis('off')
 ax.set_title('FUSE Result')
 #Assign community labels to colors
-color_patches = generate_patches(colors)
-ax.legend(handles = color_patches, prop = {'size':14}, loc = 7)
+color_patches = generate_patches(colors[0:len(com4_new)])
+ax.legend(handles = color_patches, prop = {'size':16}, loc = 7)
 mun_gto_map.plot(color = colors4, ax = ax)
 
 """Export image with a resolution of 600 dpi"""
@@ -343,9 +366,9 @@ cbar.ax.tick_params(labelsize = 13)
 """Export image with a resolution of 600 dpi"""
 fig.savefig("level_membership_FUSE.png", dpi = 600)
 
-"""#Correlación del nivel de pertenencia con otras variables"""
+"""#Correlation of level of membership with other variables"""
 
-#Función para dividir un vector de datos de acuerdo a una partición
+#Function to divide a data vector according a partition
 def div_vec(data,part):
     #Number of communities of the partition
     n = len(part)
@@ -365,7 +388,7 @@ def div_vec(data,part):
 #Separate data vector of monthly cases registered by community
 list_cases_com = div_vec(cases_per,com4_jun_feb)
 #Calculate Pearson correlation coefficient and p-value between level of membership and registered cases per community
-print('If p-value < 0.05, then the correlation is statistically significant:')
+print('If p-value < 0.10, then the correlation is statistically significant:')
 for k in range(0,4):
     correlation_coeff_k, p_value_k = pearsonr(belong4_jun_feb[k], list_cases_com[k])
     print("Level of membership of community "+str(k)+" vs Monthly registered cases")
@@ -378,7 +401,7 @@ for k in range(0,4):
 #Separate marginalization index data vector by community
 list_marg_com = div_vec(index_marg,com4_jun_feb)
 #Calculate Pearson correlation coefficient and p-value between level of membership and marginization index per community
-print('If p-value < 0.05, then the correlation is statistically significant:')
+print('If p-value < 0.10, then the correlation is statistically significant:')
 for k in range(0,4):
     correlation_coeff_k, p_value_k = pearsonr(belong4_jun_feb[k], list_marg_com[k])
     print("Level of membership of community "+str(k)+" vs Marginization index")

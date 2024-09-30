@@ -20,10 +20,11 @@ import geopandas
 import networkx as nx
 import leidenalg as la
 import igraph as ig
+import pycombo
 pd.options.display.max_rows=10
 from ProposedAlgorithms import count_month,GeNA,ReVAM,print_com,transf,com_to_group,change,generate_patches,modularity,col_map_level,transf_cases_gto
 
-"""Lista de 12 colores a usar para las comunidades"""
+"""List of colors to use in maps"""
 
 colors = ['red','green','hotpink','blue','purple','yellow','cyan','magenta','brown','olive','darkorange','gold']
 
@@ -71,44 +72,6 @@ df_etiq = pd.read_excel("municipios_gto.xlsx", sheet_name = "Hoja1")
 #Import population of each municipality of Guanajuato
 population = df_etiq["Poblacion"]
 
-"""#SICOM Zoning of the State of Guanajuato"""
-
-#Import the names of the municipalities in the format necessary for the map
-df_highway = pd.read_excel("highway_data.xlsx", sheet_name = "Hoja1")
-zone_num = df_highway['Zone']
-df_highway.info()
-
-"""Color map with geopandas"""
-
-#Divide the municipalities according to the four SICOM zones
-zones = [[],[],[],[]]
-n_mun = len(zone_num)
-for i in range(0,n_mun):
-    zones[zone_num[i]-1].append(i)
-
-#Generate the four patches of the SICOM zones
-def generate_zones_patches(colors):
-    zone_label = ['Northwest','Northeast','Southeast','Southwest']
-    list_patches = []
-    n_colors=len(colors)
-    for i in range(0,n_colors):
-        patch_act = mpatches.Patch(color=colors[i], label=zone_label[i])
-        list_patches.append(patch_act)
-    return list_patches
-
-zones_new = transf(zones)
-groups_zones = com_to_group(zones_new)
-colors_zones = change(groups_zones,colors[0:len(zones)])
-#Color map
-fig,axs = subplots(1, 2, figsize = (15,12))
-ax_zones = axs[0]
-#Remove the axis
-ax_zones.axis('off')
-#Assign community labels to colors
-color_patches = generate_zones_patches(colors[0:len(zones)])
-ax_zones.legend(handles = color_patches,prop = {'size':10}, loc=4)
-ax_zones.set_title('(a) Zones of Guanajuato Highway Network', fontdict = {'fontsize': '15', 'fontweight': '3'})
-mun_gto_map.plot(color = colors_zones,ax = ax_zones)
 
 
 """#Apply Generalized Newman Algorithm
@@ -129,41 +92,14 @@ for k in range(0,9):
   mes_act=mat_count_month[:,k+15]
   cases_per = cases_per+mes_act
 
-#New adjacency matrix
-A_new = zeros((46,46))
 #Construct the weight matrix using the adjacency matrix
 W_jun_feb = zeros((46,46))
 for i in range(0,46):
     for j in range(i+1,46):
         if mat_adj[i,j+1]==1:
-            A_new[i,j],A_new[j,i] = 1,1
-            W_jun_feb[i,j],W_jun_feb[j,i] = (cases_per[i]+cases_per[j])/18,(cases_per[i]+cases_per[j])/18
+            W_jun_feb[i,j] = (cases_per[i]+cases_per[j])/18
+            W_jun_feb[j,i] = (cases_per[i]+cases_per[j])/18
 
-
-"""Partition using only the adjacency matrix"""
-
-#Apply the generalized Newman's algorithm
-print("Communities for the period June 2021-February 2022 considering only the adjacency matrix:")
-coef_A,com_A = GeNA(A_new)
-#Number of communities detected
-n_A = len(com_A)
-print_com(A_new,com_A,name_mun)
-
-com_A_new = transf(com_A)
-groups_A = com_to_group(com_A_new)
-colors_A = change(groups_A,colors[0:len(com_A)])
-#Color map
-ax_A = axs[1]
-#Remove the axis
-ax_A.axis('off')
-#Assign community labels to colors
-color_patches = generate_patches(colors[0:len(com_A)])
-ax_A.legend(handles = color_patches, prop = {'size':12}, loc = 4)
-ax_A.set_title('(b) Using Only the Adjacency Matrix', fontdict = {'fontsize': '15', 'fontweight': '3'})
-mun_gto_map.plot(color = colors_A,ax = ax_A)
-
-"""Export graphics with a resolution of 600 dpi"""
-fig.savefig("Zoning_and_Partition_Adj.png",dpi=600)
 
 
 """#Apply Leiden algorithm using CPM as partition type for optimization"""
@@ -221,6 +157,7 @@ for i in range(0,len(num_com_leid_sort)):
     if num_com_act > com_act:
         jump_leid_cpm.append(i)
         com_act = num_com_act
+'''
 print("Resolution parameter values:")
 print(val_res_leid_sort)
 print("Number of communities obtained with the resolution parameter:")
@@ -228,6 +165,7 @@ print(num_com_leid_sort)
 print("Partition modularity:")
 print(mod_k_leid_sort)
 print(jump_leid_cpm)
+'''
 
 """Obtain the maximum modularity found for each number of communities"""
 
@@ -258,19 +196,19 @@ fig,ax = subplots(figsize = (12,8))
 #Assign community labels to colors
 color_patches = generate_patches(colors[0:len(com_leiden_max_new)])
 ax.legend(handles = color_patches, prop = {'size':12}, loc = 4)
-ax.set_title('Best partiton obtained with Leiden CPM is not good')
+ax.set_title('Best partiton obtained with Leiden CPM is not good',fontdict = {'fontsize': '14', 'fontweight': '3'})
 ax.axis('off')
 mun_gto_map.plot(color = colors_leiden_max, ax = ax)
 
 
 """#Apply Leiden algorithm using RBConfigurationVertexPartition as partition type for optimization
 
-Change the resolution parameter to obtain partitions with a number of communities between 2 and 15
+Change the resolution parameter to obtain partitions with a number of communities between 2 and 23
 """
 
 #gamma is the resolution parameter
-#Up to 15 communities
-val_res_leid_rbc = arange(0.1,5.002,0.002)
+#Up to 23 communities
+val_res_leid_rbc = arange(0.1,9.282,0.002)
 #Array that will contain the number of communities obtained with each resolution value
 num_com_k_leid_rbc = zeros((len(val_res_leid_rbc)))
 #List of partitions that are generated with each k
@@ -302,6 +240,7 @@ for i in range(0,len(num_com_leid_sort)):
     if num_com_act > com_act:
         jump_leid_rbc.append(i)
         com_act = num_com_act
+'''
 print("Resolution parameter values:")
 print(val_res_leid_sort)
 print("Number of communities obtained with the resolution parameter:")
@@ -309,6 +248,7 @@ print(num_com_leid_sort)
 print("Partition modularity:")
 print(mod_k_leid_sort)
 print(jump_leid_rbc)
+'''
 
 """Obtain the maximum modularity found for each number of communities"""
 
@@ -317,7 +257,7 @@ arg_max_mod_leid_rbc = []
 for i in range(0,len(jump_leid_rbc)-1):
     max_mod_leid_rbc.append(max(mod_k_leid_sort[jump_leid_rbc[i]:jump_leid_rbc[i+1]]))
     arg_max_mod_leid_rbc.append(argmax(mod_k_leid_sort[jump_leid_rbc[i]:jump_leid_rbc[i+1]]))
-print("Maximum modularity obtained for each number of communities from 2 to 15:")
+print("Maximum modularity obtained for each number of communities from 2 to 23:")
 print(max_mod_leid_rbc)
 print("Maximum modularity among all partitions:")
 print(max(max_mod_leid_rbc))
@@ -336,13 +276,13 @@ groups_leid_max = com_to_group(com_leid_max_new)
 colors_leid_max = change(groups_leid_max, colors[0:len(com_leid_max_new)])
 #Color map
 #Create figure and axes for Matplotlib
-fig,axs = subplots(2, 2, figsize = (18,12))
+fig,axs = subplots(3, 2, figsize = (27,22))
 ax0 = axs[0,0]
 #Assign community labels to colors
 color_patches = generate_patches(colors[0:len(com_leid_max_new)])
-ax0.legend(handles = color_patches, prop = {'size':10}, loc = 4)
+ax0.legend(handles = color_patches, prop = {'size':7}, loc = 4)
 ax0.axis('off')
-ax0.set_title('(a) Leiden RBC', fontdict = {'fontsize': '15', 'fontweight': '3'})
+ax0.set_title('(a) Leiden RBC', fontdict = {'fontsize': '11', 'fontweight': '3'})
 mun_gto_map.plot(color = colors_leid_max, ax = ax0)
 
 
@@ -362,7 +302,7 @@ def sep_com(labels,n_clust):
 
 #List to store modularity of each partition
 mod_spec_clust = []
-for i in range(2,16):
+for i in range(2,24):
     clustering = SpectralClustering(n_clusters=i, affinity='precomputed', assign_labels='cluster_qr', random_state=0).fit(W_jun_feb)
     com_act = sep_com(clustering.labels_,i)
     mod = modularity(W_jun_feb,com_act)
@@ -384,9 +324,9 @@ colors_6 = change(groups_6,colors[0:len(com_6_new)])
 ax1 = axs[0,1]
 #Assign community labels to colors
 color_patches = generate_patches(colors[0:len(com_6_new)])
-ax1.legend(handles =  color_patches, prop = {'size':10}, loc = 4)
+ax1.legend(handles =  color_patches, prop = {'size':7}, loc = 4)
 ax1.axis('off')
-ax1.set_title('(b) Spectral clustering QR', fontdict = {'fontsize': '15', 'fontweight': '3'})
+ax1.set_title('(b) Spectral clustering QR', fontdict = {'fontsize': '11', 'fontweight': '3'})
 mun_gto_map.plot(color = colors_6, ax = ax1)
 
 
@@ -419,11 +359,11 @@ def set_to_list(list_old):
 #Creacion del grafo asociado a la matriz de pesos W_jun_feb
 G_nx = create_graph_W_nx(W_jun_feb)
 
-"""Change the resolution parameter to obtain partitions with a number of communities between 2 and 15"""
+"""Change the resolution parameter to obtain partitions with a number of communities between 2 and 23"""
 
 #gamma is the resolution parameter
-#Up to 15 communities
-val_res_louv = arange(0.15,5.525,0.025)
+#Up to 23 communities
+val_res_louv = arange(0.15,9.525,0.025)
 #Array that will contain the number of communities obtained with each resolution value
 num_com_k_louv = zeros((len(val_res_louv)))
 #List of partitions that are generated with each k
@@ -455,6 +395,7 @@ for i in range(0,len(num_com_louv_sort)):
     if num_com_act > com_act:
         jump_louv.append(i)
         com_act = num_com_act
+'''
 print("Resolution parameter values:")
 print(val_res_louv_sort)
 print("Number of communities obtained with the resolution parameter:")
@@ -462,6 +403,7 @@ print(num_com_louv_sort)
 print("Partition modularity:")
 print(mod_k_louv_sort)
 print(jump_louv)
+'''
 
 """Obtain the maximum modularity found for each number of communities"""
 
@@ -470,7 +412,7 @@ arg_max_mod_louv = []
 for i in range(0,len(jump_louv)-1):
     max_mod_louv.append(max(mod_k_louv_sort[jump_louv[i]:jump_louv[i+1]]))
     arg_max_mod_louv.append(argmax(mod_k_louv[jump_louv[i]:jump_louv[i+1]]))
-print("Maximum modularity obtained for each number of communities from 2 to 15:")
+print("Maximum modularity obtained for each number of communities from 2 to 23:")
 print(max_mod_louv)
 print("Maximum modularity among all partitions:")
 print(max(max_mod_louv))
@@ -494,17 +436,105 @@ colors_louv_max = change(groups_louv_max, colors[0:len(com_louv_max_new)])
 ax2 = axs[1,0]
 #Assign community labels to colors
 color_patches = generate_patches(colors[0:len(com_louv_max_new)])
-ax2.legend(handles = color_patches, prop = {'size':10}, loc = 4)
+ax2.legend(handles = color_patches, prop = {'size':7}, loc = 4)
 ax2.axis('off')
-ax2.set_title('(c) Louvain', fontdict = {'fontsize': '15', 'fontweight': '3'})
+ax2.set_title('(c) Louvain', fontdict = {'fontsize': '11', 'fontweight': '3'})
 mun_gto_map.plot(color = colors_louv_max, ax = ax2)
+
+
+"""#Apply Combo Algorithm"""
+#gamma is the resolution parameter
+#Up to 23 communitie
+val_res_combo = arange(0.01,9.81,0.01)
+#Array that will contain the number of communities obtained with each resolution value
+num_com_k_combo = zeros((len(val_res_combo)))
+#List of partitions that are generated with each k
+part_k_combo = []
+#Modularity of each partition
+mod_k_combo = zeros((len(val_res_combo)))
+#Counter
+count = 0
+for gamma in val_res_combo:
+    part_combo_gamma = pycombo.execute(G_nx, weight = 'weight', modularity_resolution = gamma, random_seed=14)[0]
+    sort_part_combo_gamma = dict(sorted(part_combo_gamma.items()))
+    #Extract labels of the community assigned for each node
+    keys_com = list(sort_part_combo_gamma.values())
+    #Separate labels by communities to convert them into a list of lists
+    part_list = sep_com(keys_com,max(keys_com)+1)
+    #Number of communities of the paritition
+    num_com_gamma = len(part_list)
+    num_com_k_combo[count] = num_com_gamma
+    #Modularity of the partition
+    mod_k_combo[count] = modularity(W_jun_feb,part_list)
+    count += 1
+
+#Sort lists according to the number of communities in the k-th partition
+val_res_combo_sort = [x for _,x in sorted(zip(num_com_k_combo,val_res_combo))]
+mod_k_combo_sort = [x for _,x in sorted(zip(num_com_k_combo,mod_k_combo))]
+num_com_combo_sort = sorted(num_com_k_combo)
+#Determine the positions where the jump in increasing the number of communities is obtained in the ordered lists
+jump_combo = []
+com_act = 1
+for i in range(0,len(num_com_combo_sort)):
+    #Current number of communities
+    num_com_act = num_com_combo_sort[i]
+    if num_com_act > com_act:
+        jump_combo.append(i)
+        com_act = num_com_act
+'''
+print("Resolution parameter values:")
+print(val_res_combo_sort)
+print("Number of communities obtained with the resolution parameter:")
+print(num_com_combo_sort)
+print("Partition modularity:")
+print(mod_k_combo_sort)
+print(jump_combo)
+'''
+"""Obtain the maximum modularity found for each number of communities"""
+max_mod_combo = []
+arg_max_mod_combo = []
+for i in range(0,len(jump_combo)-1):
+    max_mod_combo.append(max(mod_k_combo_sort[jump_combo[i]:jump_combo[i+1]]))
+    arg_max_mod_combo.append(argmax(mod_k_combo_sort[jump_combo[i]:jump_combo[i+1]]))
+print("Maximum modularity obtained for each number of communities from 2 to 23:")
+print(max_mod_combo)
+print("Maximum modularity among all partitions:")
+print(max(max_mod_combo))
+
+"""Partition with maximum modularity"""
+argmax_mod_combo = argmax(max_mod_combo)
+gamma_max_combo = val_res_combo_sort[jump_combo[argmax_mod_combo]+arg_max_mod_combo[argmax_mod_combo]]
+part_combo_max = pycombo.execute(G_nx, weight = 'weight', modularity_resolution = gamma_max_combo, random_seed=14)[0]
+sort_part_combo_max = dict(sorted(part_combo_max.items()))
+#Extract labels of the community assigned for each node
+keys_com = list(sort_part_combo_max.values())
+#Separate labels by communities to convert them into a list of lists
+part_list_max = sep_com(keys_com,max(keys_com)+1)
+print_com(W_jun_feb,part_list_max,name_mun)
+
+"""Color the map corresponding to this partition"""
+part_combo_max_new = transf(part_list_max)
+groups_combo_max = com_to_group(part_combo_max_new)
+colors_combo_max = change(groups_combo_max, colors[0:len(part_combo_max_new)])
+#Color map
+#Create figure and axes for Matplotlib
+ax3 = axs[1,1]
+#Remove the axis
+ax3.axis('off')
+ax3.set_title('(d) Combo', fontdict = {'fontsize': '11', 'fontweight': '3'})
+#Assign community labels to colors
+color_patches = generate_patches(colors[0:len(part_combo_max_new)])
+ax3.legend(handles = color_patches, prop = {'size':7}, loc = 4)
+ax3.axis('off')
+mun_gto_map.plot(color = colors_combo_max, ax = ax3)
+
 
 
 """#Apply Resolution Variation Algorithm by Modularity (ReVAM)"""
 
 #List to store partition modularity
 mod_ReVAM = []
-for i in range(2,16):
+for i in range(2,24):
     part_act = ReVAM(W_jun_feb,i)
     new_com = []
     mod = modularity(W_jun_feb,part_act)
@@ -524,32 +554,76 @@ groups_ReVAM = com_to_group(part_ReVAM_new)
 colors_ReVAM_max = change(groups_ReVAM, colors[0:len(part_ReVAM_new)])
 #Color map
 #Create figure and axes for Matplotlib
-ax3 = axs[1,1]
+ax4 = axs[2,0]
 #Remove the axis
-ax3.axis('off')
-ax3.set_title('(d) ReVAM (Proposed Algorithm)', fontdict = {'fontsize': '15', 'fontweight': '3'})
+ax4.axis('off')
+ax4.set_title('(e) ReVAM (Proposed Algorithm)', fontdict = {'fontsize': '11', 'fontweight': '3'})
 #Assign community labels to colors
 color_patches = generate_patches(colors[0:len(part_ReVAM_new)])
-ax3.legend(handles = color_patches, prop = {'size':10}, loc = 4)
-mun_gto_map.plot(color = colors_ReVAM_max, ax = ax3)
+ax4.legend(handles = color_patches, prop = {'size':7}, loc = 4)
+mun_gto_map.plot(color = colors_ReVAM_max, ax = ax4)
+
+
+
+"""#SICOM Zoning of the State of Guanajuato"""
+
+#Import the names of the municipalities in the format necessary for the map
+df_highway = pd.read_excel("highway_data.xlsx", sheet_name = "Hoja1")
+zone_num = df_highway['Zone']
+df_highway.info()
+
+"""Color map with geopandas"""
+
+#Divide the municipalities according to the four SICOM zones
+zones = [[],[],[],[]]
+n_mun = len(zone_num)
+for i in range(0,n_mun):
+    zones[zone_num[i]-1].append(i)
+
+#Generate the four patches of the SICOM zones
+def generate_zones_patches(colors):
+    zone_label = ['NW','NE','SE','SW']
+    list_patches = []
+    n_colors=len(colors)
+    for i in range(0,n_colors):
+        patch_act = mpatches.Patch(color=colors[i], label=zone_label[i])
+        list_patches.append(patch_act)
+    return list_patches
+
+zones_new = transf(zones)
+groups_zones = com_to_group(zones_new)
+colors_zones = change(groups_zones,colors[0:len(zones)])
+#Color map
+ax_zones = axs[2,1]
+#Remove the axis
+ax_zones.axis('off')
+#Assign community labels to colors
+color_patches = generate_zones_patches(colors[0:len(zones)])
+ax_zones.legend(handles = color_patches,prop = {'size':7}, loc=4)
+ax_zones.set_title('(f) Zones of Guanajuato Highway Network', fontdict = {'fontsize': '11', 'fontweight': '3'})
+mun_gto_map.plot(color = colors_zones,ax = ax_zones)
+
 
 """Export image with a resolution of 600 dpi"""
 fig.savefig("comparison_partitions_algorithms.png", dpi = 600)
 
 
-"""#Compare the modularity obtained with the four methods by finding partitions with a number of communities between 2 and 15"""
 
-fig = figure(figsize=(9,6))
-t=arange(2,16,1)
+
+"""#Compare the modularity obtained with the four methods by finding partitions with a number of communities between 2 and 23"""
+fig = figure(figsize=(10,7))
+t  = arange(2,24,1)
+plot(t, max_mod_louv, linestyle="--", marker="s", markersize=8, linewidth=1.0, color='darkgreen', label='Louvain')
 plot(t, max_mod_leid_rbc, linestyle="--", marker="h", markersize=8, linewidth=1.0, color='red', label='Leiden RBC')
+plot(t, max_mod_combo, linestyle="--", marker="*", markersize=8, linewidth=1.0, color='black', label='Combo')
 plot(t ,mod_spec_clust, linestyle="--", marker="<", markersize=8, linewidth=1.0, color='purple', label='Spectral Clustering QR')
-plot(t, max_mod_louv, linestyle="--", marker=">", markersize=8, linewidth=1.0, color='darkgreen', label='Louvain')
 plot(t, mod_ReVAM, linestyle="--", marker="o", markersize=8, linewidth=1.0, color='blue', label='ReVAM (Proposed Algorithm)')
 ylabel("Modularity")
 xlabel("Number of communities")
 #title("Quality of partitions with different number of communities")
 legend()
 grid()
+
 
 """Export image with a resolution of 600 dpi"""
 fig.savefig("comp_mod_res_alg.png",dpi=600)
